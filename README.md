@@ -30,3 +30,4 @@ This project is being developed by:
 
 - [Unai Lalana](https://github.com/UnaiLalana)
 - [Filippo Muscherá](https://github.com/FilippoMuschera)
+- [Eneko Isturitz](https://github.com/EnekoIsturitzSesma)
