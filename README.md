@@ -5,7 +5,6 @@ This project focuses on performing **sentiment analysis** on Airbnb reviews usin
 ---
 
 ## 📊 Project Overview
-
 Although our main interest lies in Airbnb data, we leverage **transfer learning** by pretraining models on:
 
 - **Amazon Product Reviews** – diverse user reviews labeled by sentiment
@@ -31,3 +30,4 @@ This project is being developed by:
 - [Unai Lalana](https://github.com/UnaiLalana)
 - [Filippo Muscherá](https://github.com/FilippoMuschera)
 - [Eneko Isturitz](https://github.com/EnekoIsturitzSesma)
+- [?](https://github.com/)
