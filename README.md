@@ -1,32 +1,65 @@
-# 🏠 Sentiment Analysis on Airbnb Reviews
+# 🏠 Airbnb Data Science: Sentiment Analysis & Price Prediction
 
-CHANGE
-This project focuses on performing **sentiment analysis** on Airbnb reviews using models trained on publicly available datasets from **Amazon** and **IMDB**. The goal is to classify each review as **positive** or **negative**, helping hosts, guests, and platforms gain insights into user experiences.
+This project addresses two main challenges using Airbnb data:
+
+1. **Sentiment Analysis**: Classifying Airbnb reviews as **positive** or **negative** to help hosts, guests, and platforms gain insights into user experiences.
+2. **Price Prediction**: Predicting the nightly price of Airbnb listings based on features such as location, amenities, and review sentiment.
 
 ---
 
 ## 📊 Project Overview
 
-CHANGE
-Although our main interest lies in Airbnb data, we leverage **transfer learning** by pretraining models on:
+The project is divided into two main parts:
+
+### 1. Sentiment Analysis
+
+We leverage **transfer learning** by pretraining models on publicly available datasets:
 
 - **IMDB Movie Reviews** – clear polarity-labeled text data
 
-This approach allows better generalization and effective application of sentiment classification to Airbnb reviews, even with limited labeled Airbnb data.
+This approach enables better generalization and more effective sentiment classification on Airbnb reviews.
+
+### 2. Price Prediction
+
+We use machine learning regression models to predict Airbnb listing prices. Features include:
+
+- Listing characteristics (location, number of rooms, amenities, etc.)
+- Aggregated sentiment scores from guest reviews
+
+This enables more accurate and data-driven pricing strategies for hosts and platforms.
 
 ---
+
+## ⚙️ Methodology
+
+- **Data Preprocessing**: Cleaning and transforming text and tabular data.
+- **Model Training**:
+  - **Sentiment Analysis**: Models like SGDClassifier, Logistic Regression, etc., trained on IMDB and fine-tuned on Airbnb.
+  - **Price Prediction**: Regression models (e.g., Linear Regression, Random Forest) trained on Airbnb listing data.
+- **Evaluation**: Using metrics such as accuracy, F1-score (for sentiment) and RMSE, MAE (for price prediction).
+
+---
+
 ## 🛠️ Technologies Used
 
-CHANGE
-![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white) ![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white) ![NLTK](https://img.shields.io/badge/NLTK%20-4B8BBE?style=for-the-badge&logo=python&logoColor=white)
-![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white) ![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white) ![Jupyter](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)
+![NLTK](https://img.shields.io/badge/NLTK%20-4B8BBE?style=for-the-badge&logo=python&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/NumPy-013243?style=for-the-badge&logo=numpy&logoColor=white)
+![Jupyter](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)
 
-----analysis 
+---
+
+## 📁 Project Structure
+
+- `Price Prediction/` – Lorem ipsum dolor sit amet
+- `Sentiment Analysis/` – Lorem ipsum dolor sit amet
+
+---
 
 ## 👥 Authors & Collaborators
 
-
-CHANGE
 This project is being developed by:
 
 - [Unai Lalana](https://github.com/UnaiLalana)
