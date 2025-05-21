@@ -53,8 +53,8 @@ This enables more accurate and data-driven pricing strategies for hosts and plat
 
 ## 📁 Project Structure
 
-- `Price Prediction/` – Lorem ipsum dolor sit amet
-- `Sentiment Analysis/` – Lorem ipsum dolor sit amet
+- `Price Prediction/` – Contains the files and notebook to predict nightly prices based on features
+- `Sentiment Analysis/` – Contains the files and notebook to classify airbnb reviews between positive and negative sentiments
 
 ---
 
