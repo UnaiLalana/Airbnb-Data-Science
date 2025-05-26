@@ -9,9 +9,11 @@ import json
 import pandas as pd
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout,
-    QFormLayout, QComboBox, QTextEdit, QTabWidget, QMessageBox, QScrollArea
+    QFormLayout, QComboBox, QTextEdit, QTabWidget, QMessageBox, QScrollArea,
+    QHBoxLayout  # Added for horizontal layout for currency conversion
 )
 from PySide6.QtCore import Qt, QSize
+import requests  # Added for API calls
 
 # Do NOT hardcode STOCKHOLM_NEIGHBORHOODS_GEOJSON. It will be loaded from the file.
 
@@ -210,6 +212,142 @@ ALL_TRAINING_COLUMNS = [
     'room_type_Hotel_room', 'room_type_Private_room', 'room_type_Shared_room'
 ]
 
+# --- START: Currency Conversion Configuration ---
+# You need to sign up for a free API key at https://www.exchangerate-api.com/
+# and replace 'YOUR_API_KEY' with your actual key.
+# Free tier gives 1,500 requests/month, which is enough for local use.
+EXCHANGE_RATE_API_KEY = "a5b90bd3bfd8e4a2f16083c5"  # <--- REPLACE WITH YOUR ACTUAL API KEY
+EXCHANGE_RATE_API_BASE_URL = f"https://v6.exchangerate-api.com/v6/{EXCHANGE_RATE_API_KEY}/latest/SEK"
+
+COMMON_CURRENCIES = {
+    "USD": "United States Dollar",
+    "EUR": "Euro",
+    "GBP": "British Pound",
+    "SEK": "Swedish Krona",  # Base currency
+    "DKK": "Danish Krone",
+    "NOK": "Norwegian Krone",
+    "CAD": "Canadian Dollar",
+    "AUD": "Australian Dollar",
+    "JPY": "Japanese Yen",
+    "CHF": "Swiss Franc",
+    "INR": "Indian Rupee",
+}
+
+
+# --- END: Currency Conversion Configuration ---
+
+
+class ResultTab(QWidget):
+    def __init__(self, parent_app, user_data, predicted_sek_price):
+        super().__init__()
+        self.parent_app = parent_app  # Reference to the main application for error messages
+        self.user_data = user_data
+        self.predicted_sek_price = predicted_sek_price
+        self.exchange_rates = {}  # To store fetched rates
+
+        self.init_ui()
+        self._fetch_exchange_rates()  # Fetch rates when the tab is initialized
+        self._update_currency_display()  # Update initial display
+
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(15)
+        layout.setAlignment(Qt.AlignTop)
+
+        result_title = QLabel("Prediction Result")
+        result_title.setAlignment(Qt.AlignCenter)
+        result_title.setStyleSheet("font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #F01C5C;")
+        layout.addWidget(result_title)
+
+        # Display user input for confirmation
+        input_summary_label = QLabel("<b>Input Summary:</b>")
+        layout.addWidget(input_summary_label)
+
+        details_text = f"  Address: {self.user_data.get('address', 'N/A')}\n" \
+                       f"  Number of Rooms: {self.user_data.get('n_rooms', 'N/A')}\n" \
+                       f"  Amenities: {self.user_data.get('amenities_str', 'N/A')}\n" \
+                       f"  Property Type: {self.user_data.get('property_type', 'N/A')}\n" \
+                       f"  Room Type: {self.user_data.get('room_type', 'N/A')}"
+        input_details = QLabel(details_text)
+        input_details.setWordWrap(True)
+        layout.addWidget(input_details)
+
+        # Display initial prediction in SEK
+        self.prediction_label = QLabel(f"<b>Predicted Price: SEK {self.predicted_sek_price:,.2f}</b>")
+        self.prediction_label.setAlignment(Qt.AlignCenter)
+        self.prediction_label.setStyleSheet(
+            "font-size: 22px; font-weight: bold; color: #008000; margin-top: 20px; margin-bottom: 20px;")
+        layout.addWidget(self.prediction_label)
+
+        # --- Currency Conversion Section ---
+        currency_h_layout = QHBoxLayout()
+        currency_h_layout.setAlignment(Qt.AlignCenter)  # Center the currency controls
+
+        currency_label = QLabel("Convert to:")
+        currency_label.setStyleSheet("font-weight: 500;")
+        currency_h_layout.addWidget(currency_label)
+
+        self.currency_combo = QComboBox()
+        # Populate with common currencies. The order matters for display.
+        for code, name in COMMON_CURRENCIES.items():
+            self.currency_combo.addItem(f"{code} - {name}", code)
+        self.currency_combo.setCurrentText("SEK - Swedish Krona")  # Default to SEK
+        self.currency_combo.setMinimumWidth(200)  # Give it some width
+        self.currency_combo.currentIndexChanged.connect(self._update_currency_display)  # Connect to selection change
+
+        currency_h_layout.addWidget(self.currency_combo)
+
+        layout.addLayout(currency_h_layout)
+
+        # Label to display converted price
+        self.converted_price_label = QLabel(f"")
+        self.converted_price_label.setAlignment(Qt.AlignCenter)
+        self.converted_price_label.setStyleSheet(
+            "font-size: 18px; font-weight: bold; margin-top: 10px; color: #333333;")
+        layout.addWidget(self.converted_price_label)
+        # --- End Currency Conversion Section ---
+
+        layout.addStretch()  # Push content up
+
+    def _fetch_exchange_rates(self):
+        """Fetches exchange rates from the API."""
+        try:
+            response = requests.get(EXCHANGE_RATE_API_BASE_URL)
+            response.raise_for_status()  # Raise an exception for HTTP errors (4xx or 5xx)
+            data = response.json()
+            if data and data['result'] == 'success':
+                self.exchange_rates = data['conversion_rates']
+                print("Exchange rates fetched successfully.")
+            else:
+                error_message = data.get('error-type', 'Unknown error')
+                self.parent_app._show_error_message(f"Failed to fetch exchange rates: {error_message}")
+                print(f"Failed to fetch exchange rates: {error_message}")
+        except requests.exceptions.RequestException as e:
+            self.parent_app._show_error_message(f"Network error fetching exchange rates: {e}")
+            print(f"Network error fetching exchange rates: {e}")
+        except Exception as e:
+            self.parent_app._show_error_message(f"An unexpected error occurred while fetching exchange rates: {e}")
+            print(f"An unexpected error occurred while fetching exchange rates: {e}")
+
+    def _update_currency_display(self):
+        """Converts and displays the price in the selected currency."""
+        selected_currency_code = self.currency_combo.currentData()  # Get the stored data (currency code)
+
+        if not self.exchange_rates:
+            self.converted_price_label.setText("Rates not available.")
+            return
+
+        if selected_currency_code in self.exchange_rates:
+            exchange_rate = self.exchange_rates[selected_currency_code]
+            converted_price = self.predicted_sek_price * exchange_rate
+            self.converted_price_label.setText(
+                f"Equivalent Price: {selected_currency_code} {converted_price:,.2f}"
+            )
+        else:
+            self.converted_price_label.setText("Conversion not available for selected currency.")
+            print(f"Currency code '{selected_currency_code}' not found in fetched rates.")
+
 
 class ApartmentPricePredictor(QWidget):
     def __init__(self):
@@ -383,10 +521,11 @@ class ApartmentPricePredictor(QWidget):
         input_form_layout.addRow(QLabel("Address:"), self.address)
 
         self.n_rooms = QComboBox()
-        self.n_rooms.addItems([str(i) for i in range(1, 11)])  # Common range 1-10 rooms
+        self.n_rooms.addItems([str(i) for i in range(1, 21)])  # Increased range to 1-20
         self.n_rooms.insertItem(0, "")  # Add an empty option as default
         self.n_rooms.setCurrentIndex(0)
         self.n_rooms.setEditable(True)  # Allow typing, but mainly for selection
+        self.n_rooms.setMinimumWidth(150)
         self.n_rooms.lineEdit().setPlaceholderText("Select or type number of rooms")
         # Ensure the line edit within the QComboBox is not read-only, if direct typing is desired
         self.n_rooms.lineEdit().setReadOnly(False)
@@ -437,6 +576,15 @@ class ApartmentPricePredictor(QWidget):
         if not self.stockholm_neighborhoods_geojson:
             self._show_error_message("Neighborhoods GeoJSON is not loaded. Cannot determine location.")
             return
+        # Check if the API key is the default placeholder
+        if EXCHANGE_RATE_API_KEY == "YOUR_API_KEY":
+            self._show_error_message(
+                "API Key for ExchangeRate-API is not set. Please replace 'YOUR_API_KEY' in the code "
+                "with your actual key from exchangerate-api.com to enable currency conversion."
+            )
+            # You might want to return here or proceed without currency conversion
+            # For now, let's proceed to show prediction but currency conversion will fail
+            # return
 
         address_text = self.address.text().strip()
         n_rooms_text = self.n_rooms.currentText().strip()
@@ -477,46 +625,16 @@ class ApartmentPricePredictor(QWidget):
 
     def show_results_tab(self, user_data):
         """Creates a new tab to display the prediction results."""
-        result_tab_widget = QWidget()
-        layout = QVBoxLayout(result_tab_widget)
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(15)
-        layout.setAlignment(Qt.AlignTop)  # Align content to the top
-
-        result_title = QLabel("Prediction Result")
-        result_title.setAlignment(Qt.AlignCenter)
-        result_title.setStyleSheet("font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #F01C5C;")
-        layout.addWidget(result_title)
-
-        # Display user input for confirmation (optional but good UX)
-        input_summary_label = QLabel("<b>Input Summary:</b>")
-        layout.addWidget(input_summary_label)
-
-        details_text = f"  Address: {user_data.get('address', 'N/A')}\n" \
-                       f"  Number of Rooms: {user_data.get('n_rooms', 'N/A')}\n" \
-                       f"  Amenities: {user_data.get('amenities_str', 'N/A')}\n" \
-                       f"  Property Type: {user_data.get('property_type', 'N/A')}\n" \
-                       f"  Room Type: {user_data.get('room_type', 'N/A')}"
-        input_details = QLabel(details_text)
-        input_details.setWordWrap(True)
-        layout.addWidget(input_details)
-
-        # Placeholder for prediction
-        prediction_label = QLabel("Calculating prediction...")
-        prediction_label.setAlignment(Qt.AlignCenter)
-        prediction_label.setStyleSheet("font-size: 18px; margin-top: 20px; margin-bottom: 20px;")
-        layout.addWidget(prediction_label)
-
+        predicted_price = None
         try:
             # Prepare input data for the model
             input_df = self._prepare_input_for_model(user_data)
 
             if input_df is None:
-                prediction_label.setText(f"<span style='color:red;'>Error preparing input for prediction.</span>")
+                self._show_error_message("Error preparing input for prediction.")
                 return
 
             # Ensure all columns in ALL_TRAINING_COLUMNS are present, fill missing with 0
-            # This is crucial for LightGBM
             for col in ALL_TRAINING_COLUMNS:
                 if col not in input_df.columns:
                     input_df[col] = 0
@@ -526,22 +644,17 @@ class ApartmentPricePredictor(QWidget):
 
             # Make prediction
             predicted_price = self.model.predict(input_df)[0]
-
-            # Display the prediction
-            prediction_label.setText(f"<b>Predicted Price: SEK {predicted_price:,.2f}</b>")
-            prediction_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #008000; margin-top: 20px;")
+            predicted_price = max(0, predicted_price)  # Ensure price is not negative
 
         except Exception as e:
             error_msg = f"Error during prediction: {e}"
             print(error_msg)
-            prediction_label.setText(f"<span style='color:red;'>Error: Could not make prediction. {e}</span>")
-            self._show_error_message(error_msg)  # Also show in a dialog
+            self._show_error_message(error_msg)
+            predicted_price = 0  # Default to 0 or some error indicator if prediction fails
 
-        layout.addStretch()  # Push content up
-
-        # Add the new result tab and switch to it
-        tab_index = self.tabs.addTab(result_tab_widget,
-                                     f"Result {self.tabs.count()}")
+        # Create and add the ResultTab
+        result_tab_widget = ResultTab(self, user_data, predicted_price)
+        tab_index = self.tabs.addTab(result_tab_widget, f"Result {self.tabs.count()}")
         self.tabs.setCurrentIndex(tab_index)
 
     def _get_coordinates(self, address):
@@ -602,159 +715,158 @@ class ApartmentPricePredictor(QWidget):
 
     def _prepare_input_for_model(self, user_data):
         """
-        Prepares a pandas DataFrame with all necessary features for the LightGBM model.
-        Fills in default/dummy values for features not collected from the UI.
+        Prepares a pandas DataFrame row from user input suitable for model prediction.
         """
-        # Create a DataFrame with all training columns, initialized to 0
-        input_df = pd.DataFrame(0, index=[0], columns=ALL_TRAINING_COLUMNS)
-
-        # --- Handle User Input Features ---
-        input_df['accommodates'] = user_data['n_rooms']  # A rough approximation, could be refined
-        input_df['bedrooms'] = user_data['n_rooms']  # Assuming 1 bedroom per room for simplicity
-        input_df['beds'] = user_data['n_rooms']  # Assuming 1 bed per room for simplicity
-
-        # Geocoding and Neighborhood
-        latitude, longitude = self._get_coordinates(user_data['address'])
+        latitude, longitude = self._get_coordinates(user_data["address"])
         if latitude is None or longitude is None:
-            self._show_error_message("Could not get coordinates for the given address. Please check the address.")
+            self._show_error_message(f"Could not determine coordinates for address: {user_data['address']}.")
             return None
-        input_df['latitude'] = latitude
-        input_df['longitude'] = longitude
 
         neighborhood = self._get_neighborhood(latitude, longitude)
-        # Sanitize neighborhood name for column name
-        sanitized_neighborhood = re.sub(r'[^a-zA-Z0-9_]', '_', neighborhood).replace('__', '_').strip('_')
-        neighborhood_col = f'neighbourhood_cleansed_{sanitized_neighborhood}'
+        print(f"Address: {user_data['address']}, Lat: {latitude}, Lon: {longitude}, Neighborhood: {neighborhood}")
 
-        if neighborhood_col in ALL_TRAINING_COLUMNS:
-            input_df[neighborhood_col] = 1
+        # Initialize all feature columns to 0 or default values
+        input_data = {col: 0 for col in ALL_TRAINING_COLUMNS}
+
+        # Set specific numerical features
+        input_data['latitude'] = latitude
+        input_data['longitude'] = longitude
+        input_data['accommodates'] = user_data['n_rooms']  # Assuming n_rooms is proxy for accommodates
+        input_data['bedrooms'] = user_data['n_rooms']  # Assuming n_rooms is proxy for bedrooms
+        input_data['beds'] = user_data['n_rooms'] * 1.5  # A common heuristic for beds
+        input_data['minimum_nights'] = 1  # Default value, can be made user input
+        input_data['maximum_nights'] = 1125  # Default value (365 * 3), can be made user input
+        input_data['availability_30'] = 20  # Default value, can be made user input
+        input_data['availability_60'] = 40
+        input_data['availability_90'] = 60
+        input_data['availability_365'] = 200
+        input_data['number_of_reviews'] = 0  # No reviews yet, as per initial prompt context
+        input_data['review_scores_rating'] = 0
+        input_data['review_scores_accuracy'] = 0
+        input_data['review_scores_cleanliness'] = 0
+        input_data['review_scores_checkin'] = 0
+        input_data['review_scores_communication'] = 0
+        input_data['review_scores_location'] = 0
+        input_data['review_scores_value'] = 0
+        input_data['instant_bookable'] = 0  # Default to not instant bookable
+        input_data['calculated_host_listings_count'] = 1  # Assuming this is the only listing for host
+        input_data['reviews_per_month'] = 0  # No reviews
+        input_data['host_duration_days'] = 1000  # Example host duration
+        input_data['num_bathrooms'] = max(1, user_data['n_rooms'] // 2)  # Heuristic for bathrooms
+        input_data['is_shared_bath'] = 0
+        input_data['num_amenities'] = len(user_data['amenities_str'].split(',')) if user_data['amenities_str'] else 0
+        input_data['num_host_verifications'] = 3  # Example number
+        input_data['never_reviewed'] = 1  # Assuming new listing
+        input_data['days_since_last_review'] = 9999  # Large number for never reviewed
+        input_data['days_since_first_review'] = 9999  # Large number for never reviewed
+        input_data['desc_sentiment'] = 0.5  # Neutral sentiment
+
+        # Set host-related features (example values, these would ideally come from more input)
+        input_data['host_since'] = 365 * 3  # Example: host joined 3 years ago
+        input_data['host_response_rate'] = 0.95
+        input_data['host_acceptance_rate'] = 0.90
+        input_data['host_is_superhost'] = 0
+        input_data['host_listings_count'] = 1
+        input_data['host_total_listings_count'] = 1
+        input_data['host_has_profile_pic'] = 1
+        input_data['host_identity_verified'] = 1
+
+        # Process amenities - Set corresponding amenity columns to 1 if present
+        if user_data['amenities_str']:
+            amenities_list = [re.sub(r'[^a-z0-9_]', '', a.strip().lower().replace(' ', '_')) for a in
+                              user_data['amenities_str'].split(',')]
+            for amenity in amenities_list:
+                # Map some common amenity inputs to potential training columns
+                if amenity == 'wifi' and 'wifi' in input_data:
+                    input_data['wifi'] = 1
+                elif amenity == 'kitchen' and 'kitchen' in input_data:
+                    input_data['kitchen'] = 1
+                elif amenity == 'tv' and 'tv' in input_data:
+                    input_data['tv'] = 1
+                elif amenity == 'pool' and 'pool' in input_data:
+                    input_data['pool'] = 1
+                elif amenity == 'air_conditioning' and 'air_conditioning' in input_data:
+                    input_data['air_conditioning'] = 1
+                elif amenity == 'heating' and 'heating' in input_data:
+                    input_data['heating'] = 1
+                elif amenity == 'washer' and 'washer' in input_data:
+                    input_data['washer'] = 1
+                elif amenity == 'dryer' and 'dryer' in input_data:
+                    input_data['dryer'] = 1
+                elif amenity == 'essentials' and 'essentials' in input_data:
+                    input_data['essentials'] = 1
+                elif amenity == 'shampoo' and 'shampoo' in input_data:
+                    input_data['shampoo'] = 1
+                elif amenity == 'hangers' and 'hangers' in input_data:
+                    input_data['hangers'] = 1
+                elif amenity == 'iron' and 'iron' in input_data:
+                    input_data['iron'] = 1
+                elif amenity == 'hair_dryer' and 'hair_dryer' in input_data:
+                    input_data['hair_dryer'] = 1
+                elif amenity == 'private_entrance' and 'private_entrance' in input_data:
+                    input_data['private_entrance'] = 1
+                elif amenity == 'fireplace' and 'indoor_fireplace' in input_data:
+                    input_data['indoor_fireplace'] = 1
+                elif amenity == 'gym' and 'gym' in input_data:
+                    input_data['gym'] = 1
+                elif amenity == 'hot_tub' and 'hot_tub' in input_data:
+                    input_data['hot_tub'] = 1
+                elif amenity == 'free_parking' and 'free_parking_on_premises' in input_data:
+                    input_data['free_parking_on_premises'] = 1
+                elif amenity == 'self_check_in' and 'self_check_in' in input_data:
+                    input_data['self_check_in'] = 1
+                # Add more amenity mappings as needed, based on your ALL_TRAINING_COLUMNS
+
+        # Set one-hot encoded categorical features
+        # For neighborhood
+        neighborhood_col = f'neighbourhood_cleansed_{neighborhood.replace(" ", "_").replace("-", "_").replace("&", "and")}'
+        if neighborhood_col in input_data:
+            input_data[neighborhood_col] = 1
         else:
             print(
-                f"Warning: Neighborhood '{neighborhood}' (sanitized to '{sanitized_neighborhood}') not found in training columns. It will be treated as an unknown neighborhood.")
-            # If the neighborhood is not in the training columns, it effectively stays 0 for that specific dummy variable, which is correct.
+                f"Warning: Neighborhood column '{neighborhood_col}' not found in training columns. This might affect prediction accuracy.")
 
-        # Property Type
-        # Sanitize property type for column name
-        property_type_clean = user_data['property_type'].replace(" ", "_").replace("/", "_").replace("-", "_").lower()
-
-        # Handle "Entire home/apt" as a special case for property_type to map to 'Entire_home' or 'Entire_rental_unit'
-        if property_type_clean == "entire_home/apt":
-            # Heuristic: assume 'Entire_home' if common, or 'Entire_rental_unit'
-            if 'property_type_Entire_home' in ALL_TRAINING_COLUMNS:
-                input_df['property_type_Entire_home'] = 1
-            elif 'property_type_Entire_rental_unit' in ALL_TRAINING_COLUMNS:
-                input_df['property_type_Entire_rental_unit'] = 1
-            else:
-                print(f"Warning: Could not map 'Entire home/apt' to a known property type column.")
+        # For property_type
+        # Clean and map property type to match possible training columns
+        property_type_cleaned = user_data['property_type'].replace(" ", "_").replace("/", "_").lower()
+        # Handle "Entire home/apt" which is often mapped to "Entire home" or "Entire rental unit"
+        if property_type_cleaned == "entire_home_apt":
+            if "property_type_Entire_home" in input_data:
+                input_data["property_type_Entire_home"] = 1
+            elif "property_type_Entire_rental_unit" in input_data:
+                input_data["property_type_Entire_rental_unit"] = 1
         else:
-            # Map other property types
-            property_type_col = f'property_type_{property_type_clean.capitalize()}'  # Assume capitalized first letter
-            if property_type_col in ALL_TRAINING_COLUMNS:
-                input_df[property_type_col] = 1
-            else:
-                # Try a direct match if capitalization is different in ALL_TRAINING_COLUMNS
-                found = False
-                for col in ALL_TRAINING_COLUMNS:
-                    if col.startswith('property_type_') and col.lower() == f'property_type_{property_type_clean}':
-                        input_df[col] = 1
-                        found = True
-                        break
-                if not found:
-                    print(
-                        f"Warning: Property type '{user_data['property_type']}' (sanitized to '{property_type_clean}') not found in training columns.")
-
-        # Room Type
-        room_type_clean = user_data['room_type'].replace(" ", "_").replace("/", "_").replace("-", "_").lower()
-        if room_type_clean == "entire_home_apt":
-            # Map "Entire home/apt" to 'Entire_home_apt' (if it exists) or 'Entire_home' for 'room_type'
-            if 'room_type_Entire_home_apt' in ALL_TRAINING_COLUMNS:
-                input_df['room_type_Entire_home_apt'] = 1
-            elif 'room_type_Entire_home' in ALL_TRAINING_COLUMNS:  # Fallback if 'Entire_home_apt' isn't exact
-                input_df['room_type_Entire_home'] = 1
-            else:
-                print(f"Warning: Could not map 'Entire home/apt' to a known room type column.")
-        else:
-            room_type_col = f'room_type_{room_type_clean.capitalize()}'  # Assume capitalized first letter
-            if room_type_col in ALL_TRAINING_COLUMNS:
-                input_df[room_type_col] = 1
-            else:
-                # Try a direct match if capitalization is different in ALL_TRAINING_COLUMNS
-                found = False
-                for col in ALL_TRAINING_COLUMNS:
-                    if col.startswith('room_type_') and col.lower() == f'room_type_{room_type_clean}':
-                        input_df[col] = 1
-                        found = True
-                        break
-                if not found:
-                    print(
-                        f"Warning: Room type '{user_data['room_type']}' (sanitized to '{room_type_clean}') not found in training columns.")
-
-        # Amenities
-        amenities_list = [a.strip().lower() for a in user_data['amenities_str'].split(',') if a.strip()]
-        for amenity in amenities_list:
-            # Sanitize amenity name for column name
-            sanitized_amenity = re.sub(r'[^a-zA-Z0-9_]', '_', amenity).replace('__', '_').strip('_')
-            amenity_col = sanitized_amenity
-
-            # Check if the amenity (sanitized) is in our training columns
-            if amenity_col in ALL_TRAINING_COLUMNS:
-                input_df[amenity_col] = 1
+            prop_col_name = f'property_type_{user_data["property_type"].replace(" ", "_").replace("/", "_").replace("-", "_")}'
+            # Special handling for "Hotel room" in property_type if it sometimes appears as "Room in hotel"
+            if prop_col_name == 'property_type_Hotel_room' and 'property_type_Room_in_hotel' in input_data:
+                input_data['property_type_Room_in_hotel'] = 1
+            elif prop_col_name in input_data:
+                input_data[prop_col_name] = 1
             else:
                 print(
-                    f"Warning: Amenity '{amenity}' (sanitized to '{sanitized_amenity}') not found in training columns. It will be ignored.")
+                    f"Warning: Property type column '{prop_col_name}' not found in training columns. This might affect prediction accuracy.")
 
-        # --- Fill in default/dummy values for other features (crucial for model compatibility) ---
-        # Many of these are binary (0/1) or numerical features that we haven't exposed in the UI.
-        # For simplicity, we'll initialize them to reasonable defaults (e.g., 0 for counts/rates, 0 for binary flags).
-        # In a real-world scenario, you might have more sophisticated imputation or default values.
+        # For room_type
+        room_type_cleaned = user_data['room_type'].replace(" ", "_").replace("/", "_").lower()
+        if room_type_cleaned == "entire_home_apt":  # Map "Entire home/apt" to "Entire_home_apt" if it exists, or just "Entire home"
+            if "room_type_Entire_home_apt" in input_data:
+                input_data["room_type_Entire_home_apt"] = 1
+            elif "room_type_Entire_home" in input_data:  # Fallback
+                input_data["room_type_Entire_home"] = 1
+        else:
+            room_col_name = f'room_type_{user_data["room_type"].replace(" ", "_").replace("/", "_").replace("-", "_")}'
+            if room_col_name in input_data:
+                input_data[room_col_name] = 1
+            else:
+                print(
+                    f"Warning: Room type column '{room_col_name}' not found in training columns. This might affect prediction accuracy.")
 
-        # Numerical features - set to mean/median from training data if known, otherwise 0 or a sensible default
-        input_df['host_since'] = 0  # Placeholder: Days since host joined (or datetime converted to numeric)
-        input_df['host_response_rate'] = 0.5  # Default (e.g., 1.0 or 0.9 depending on typical values)
-        input_df['host_acceptance_rate'] = 0.7  # Default (e.g., 1.0 or 0.9 depending on typical values)
-        input_df['host_listings_count'] = 1  # Default: at least 1 listing
-        input_df['host_total_listings_count'] = 1  # Default: at least 1 listing
-        input_df['minimum_nights'] = 2  # Common default
-        input_df['maximum_nights'] = 1125  # A common high value (e.g., 3 years)
-        input_df['availability_30'] = 30  # Assume unavailable by default if not specified
-        input_df['availability_60'] = 60
-        input_df['availability_90'] = 90
-        input_df['availability_365'] = 365
-        input_df['number_of_reviews'] = 0  # New listing
-        input_df['review_scores_rating'] = 3.84  # No reviews yet
-        input_df['review_scores_accuracy'] = 3.84
-        input_df['review_scores_cleanliness'] = 3.80
-        input_df['review_scores_checkin'] = 3.88
-        input_df['review_scores_communication'] = 3.89
-        input_df['review_scores_location'] = 3.85
-        input_df['review_scores_value'] = 3.77
-        input_df['calculated_host_listings_count'] = 1
-        input_df['reviews_per_month'] = 0
-        input_df['host_duration_days'] = 0
-        input_df['num_bathrooms'] = 1  # Common default
-        input_df['num_amenities'] = len(amenities_list)  # Count of user-provided amenities
-        input_df['num_host_verifications'] = 0  # No info on this
-        input_df['days_since_last_review'] = 0
-        input_df['days_since_first_review'] = 0
-        input_df['desc_sentiment'] = 0.5  # Assuming neutral sentiment if no description or not analyzed
-
-        # Binary features (flags) - set to 0 (False) unless explicitly handled
-        input_df['host_is_superhost'] = 0
-        input_df['host_has_profile_pic'] = 1  # Assume true by default for a valid host
-        input_df['host_identity_verified'] = 0
-        input_df['instant_bookable'] = 0
-        input_df['is_shared_bath'] = 0
-        input_df['never_reviewed'] = 1  # True if number_of_reviews is 0
-
-        # Set specific default values for features that might be problematic if zero
-        # (e.g., if a feature like 'kitchen' implies existence)
-        if 'kitchen' in amenities_list and 'kitchen' in ALL_TRAINING_COLUMNS:
-            input_df['kitchen'] = 1
-
+        # Create a DataFrame from the prepared input data
+        input_df = pd.DataFrame([input_data])
         return input_df
 
     def _show_error_message(self, message):
-        """Displays an error message in a QMessageBox."""
+        """Displays an error message box."""
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Critical)
         msg_box.setText("Error")
