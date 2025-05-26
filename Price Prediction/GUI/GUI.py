@@ -204,7 +204,6 @@ class ApartmentPricePredictor(QWidget):
             }
             QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
                 border-color: #F01C5C; /* Highlight on focus */
-                box-shadow: 0 0 0 2px rgba(240, 28, 92, 0.2); /* Subtle glow */
             }
             QTextEdit {
                 min-height: 80px; /* Adjusted height */
