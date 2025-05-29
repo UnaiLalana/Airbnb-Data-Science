@@ -63,6 +63,6 @@ This enables more accurate and data-driven pricing strategies for hosts and plat
 This project is being developed by:
 
 - [Unai Lalana](https://github.com/UnaiLalana)
-- [Filippo Muscherá](https://github.com/FilippoMuschera)
+- [Filippo Muscherà](https://github.com/FilippoMuschera)
 - [Eneko Isturitz](https://github.com/EnekoIsturitzSesma)
 - [Paul Gasnier](https://github.com/TheBloodMan49)
