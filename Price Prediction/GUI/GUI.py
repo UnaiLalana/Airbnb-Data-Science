@@ -671,6 +671,9 @@ class ApartmentPricePredictor(QWidget):
             # Make prediction
             predicted_price = self.model.predict(input_df)[0]
             predicted_price = max(0, predicted_price)  # Ensure price is not negative
+            predicted_price = round(predicted_price / 5) * 5 # closest multiple of 5
+
+
 
         except Exception as e:
             error_msg = f"Error during prediction: {e}"
@@ -704,7 +707,7 @@ class ApartmentPricePredictor(QWidget):
         Determines the neighborhood based on latitude and longitude using the loaded GeoJSON.
         """
         if not self.stockholm_neighborhoods_geojson:
-            return "Unknown"
+            return "[Neighborhood]"
 
         point = Point(longitude, latitude)
 
