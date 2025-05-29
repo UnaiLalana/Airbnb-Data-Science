@@ -58,6 +58,12 @@ This enables more accurate and data-driven pricing strategies for hosts and plat
 
 ---
 
+## 📽️ Demo 
+
+[![Watch the demo](https://img.youtube.com/vi/pBQT1m6fiao/0.jpg)](https://www.youtube.com/watch?v=pBQT1m6fiao)
+
+---
+
 ## 👥 Authors & Collaborators
 
 This project is being developed by:
