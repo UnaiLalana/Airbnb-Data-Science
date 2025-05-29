@@ -270,7 +270,7 @@ class ResultTab(QWidget):
             f"-   <b>General important descriptors:</b> {common_keywords_str}. These are frequently used in successful descriptions.")
 
         suggestions.append(
-            "\nAim for a descriptive yet concise title. For example: 'Charming Apartment with [Top Amenity] in " + self.NEIGH_NAME + "'.")
+            f"\nAim for a descriptive yet concise title. For example: 'Cozy [number of beds/bedrooms] Apartment with [central] Location [close/few minutes walk to Location]  and with [kitchen/close restaurants] located in {self.NEIGH_NAME}'.")
 
         return "\n".join(suggestions)
 
