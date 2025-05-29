@@ -38,28 +38,20 @@ COMMON_CURRENCIES = {
 class ResultTab(QWidget):
     NEIGH_NAME = ""
     TOP_AMENITIES = [
-        'bikes',
-        'coffee_maker',
+        'dishwasher',
+        'blender',
         'outdoor_dining_area',
-        'bay_view',
-        'beach_access_beachfront',
-        'lake_access',
-        'pool',
-        'private_pool',
-        'sauna',
-        'hot_tub',
-        'bbq_grill',
-        'patio_or_balcony',
-        'gym',
-        'waterfront',
-        'air_conditioning',
+        'bathtub',
+        'long_term_stays_allowed',
+        'toaster',
+        'BBQ_grill',
+        'freezer',
+        'baking_sheet',
+        'outdoor_furniture',
         'washer',
-        'dryer',
-        'wifi',
-        'kitchen',
-        'hdtv_with_netflix',
-        'dedicated_workspace',
-        'self_check_in'
+        'self_check_in',
+        'stove',
+        'private_patio_or_balcony',
     ]
 
     # These are the *words* that showed a high ratio in top listings
